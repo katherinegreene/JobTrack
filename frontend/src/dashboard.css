@@ -1,0 +1,319 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+}
+
+
+.dashboard-container {
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background-color: #000;
+    /* black background */
+    color: #fff;
+    /* default text white */
+    min-height: 100vh;
+}
+
+/* graphics section */
+.dashboard-header {
+    display: flex;
+    /*works with justift content flex end*/
+    padding: 20px;
+    margin-bottom: 30px;
+    border-bottom: 1px solid #222;
+    justify-content: flex-end;
+    /*flex end moves button and graphics to the right flex-start for left*/
+}
+
+.add-application-button {
+    padding: 10px 20px;
+    /* button size */
+    background-color: #2cd705;
+    /* nice blue */
+    color: rgb(26, 24, 24);
+    /* text color */
+    border: none;
+    /* remove default border */
+    border-radius: 5px;
+    /* rounded corners */
+    font-weight: bold;
+    cursor: pointer;
+    /* pointer on hover */
+    transition: background 0.3s ease;
+}
+
+
+
+/* Sections upcoming past etc */
+.section {
+    margin-bottom: 40px;
+}
+
+
+.dashboard-container h1,
+.section h2 {
+    color: #fff;
+    margin-bottom: 20px;
+}
+
+/* Application cards */
+.application-card {
+    background-color: #111;
+    border: 1px solid #222;
+    border-radius: 8px;
+
+    margin-bottom: 15px;
+    transition: all 0.2s;
+}
+
+
+
+/*application titles*/
+.application-titles {
+    display: flex;
+    /* flex layout */
+    justify-content: flex-start;
+    /* space between titles*/
+    align-items: center;
+    /*vertically center*/
+    margin-bottom: 10px;
+    /*spacing below rows*/
+    font-family: 'Roboto', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    color: #828181;
+    /*text color */
+    width: 100%;
+    padding-left: 20px;
+    padding-right: 20px;
+
+}
+
+.application-titles span {
+    flex: 1;
+    /* each takes equal width */
+    text-align: left;
+    /* default left */
+    padding: 0 5px;
+    /* small spacing between columns */
+    white-space: nowrap;
+
+}
+
+/*application card row to allign application each input to the appropiate columns Title,Location etc.*/
+.application-card-row {
+    display: flex;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #222;
+    background-color: #111;
+    width: 100%;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+/*span ensures the data spans have the same width as the header/title*/
+.application-card-row span {
+    flex: 1;
+    padding: 0 5px;
+    text-align: left;
+    font-size: 14px;
+    color: #fff;
+    white-space: nowrap;
+    /*prevents the text from jumping to a second line*/
+    overflow: hidden;
+    /* This works with 'nowrap'. If a job title is very long  this rule hides the 
+   part that doesn't fit in the column so it doesn't overlap the next column. */
+    text-overflow: ellipsis;
+    /*If the text is hidden because it's too long, 
+   it adds "..." at the end*/
+}
+
+.application-card:hover {
+    transform: scale(1.02);
+}
+
+
+
+
+.application-card:hover p {
+    color: #2cd705;
+
+}
+
+.dashboard-title {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 32px;
+    color: #fff;
+    font-weight: bold;
+    margin: 0;
+    z-index: 100;
+}
+
+/* Pop up box for add application button*/
+.popup-form {
+    background-color: #000;
+    position: fixed;
+    color: #515050;
+    top: 50%;
+    /* vertically center */
+    left: 50%;
+    /* horizontally center */
+    transform: translate(-50%, -50%);
+    /* shift by 50% to truly center */
+    padding: 20px;
+    border-radius: 10px;
+    z-index: 1000;
+    /*above everything*/
+}
+
+/* Inputs and buttons styling */
+.popup-form input[type="text"],
+.popup-form input[type="number"],
+.popup-form input[type="date"],
+.popup-form select {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0 15px 0;
+    border-radius: 5px;
+    border: 1px solid #555;
+    background: #333;
+    color: white;
+}
+
+.popup-form label {
+    display: block;
+    margin-top: 10px;
+}
+
+.popup-form button {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    background-color: #00FF7F;
+    color: black;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.popup-form button:hover {
+    background-color: #00cc66;
+}
+
+
+/*PIE CHART*/
+.dashboard-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.dashboard-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.chart-container {
+    flex: 0 0 220px;
+    width: 220px;
+    margin-left: auto;
+}
+
+.chart-canvas {
+    width: 180px !important;
+    height: 180px !important;
+    display: block;
+}
+
+/*?*/
+@media (max-width: 768px) {
+    .dashboard-main {
+        flex-direction: column;
+    }
+
+    .chart-container {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
+/*ADD MATERIALS BUTTON*/
+/* Container for the two sections */
+.materials-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 20px;
+    flex: 1;
+    color: #fff;
+
+}
+
+
+.materials-section {
+    flex: 1;
+    background: #1a1a1a;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    text-align: center;
+
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.placeholder-box {
+    color: #0ee877;
+    font-size: 24px;
+    margin-top: 15px;
+    font-style: italic;
+}
+
+.placeholder-box span {
+    color: #fff;
+    margin-left: 10px;
+}
+
+.materials-section h4 {
+    margin-top: 0;
+    color: #2cd705;
+    border-bottom: 1px solid #000000;
+    padding-bottom: 10px;
+    width: 100%;
+    text-align: center;
+}
+
+/* Empty State Look */
+.placeholder-box {
+    color: #666;
+    font-size: 12px;
+    margin-top: 20px;
+    font-style: italic;
+}
+
+
+
+
+.popup-form-materials {
+
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2000;
+
+    min-height: 400px;
+    width: 420px;
+    min-height: 600px;
+    height: auto;
+    background-color: #111;
+    border: 2px solid #2cd705;
+    border-radius: 12px;
+    padding: 40px 20px 20px 20px;
+}
