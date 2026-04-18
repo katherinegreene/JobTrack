@@ -157,7 +157,7 @@ body {
 .popup-form {
     background-color: #000;
     position: fixed;
-    color: #515050;
+    color: #dddddd;
     top: 50%;
     /* vertically center */
     left: 50%;
@@ -252,6 +252,37 @@ body {
 
 }
 
+/*DELETE APPLICATION BUTTON*/
+.delete-application-button {
+    background: #f4776e;
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+
+
+}
+
+
+
+.delete-application-button:hover {
+    background: #cc0000;
+}
+
+
+
+/*UPDATE APPLICATION BUTTON*/
+.update-application-button {
+    background-color: #1645dc;
+    color: #ffffff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
 
 .materials-section {
     flex: 1;
@@ -265,6 +296,7 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    gap: 12px;
     align-items: center;
 }
 
@@ -289,13 +321,7 @@ body {
     text-align: center;
 }
 
-/* Empty State Look */
-.placeholder-box {
-    color: #666;
-    font-size: 12px;
-    margin-top: 20px;
-    font-style: italic;
-}
+
 
 
 
@@ -312,8 +338,45 @@ body {
     width: 420px;
     min-height: 600px;
     height: auto;
-    background-color: #111;
+    background-color: #313030;
     border: 2px solid #2cd705;
     border-radius: 12px;
     padding: 40px 20px 20px 20px;
+}
+
+/**/
+.materials-section input[type="file"] {
+    width: 100%;
+    color: #fff;
+    margin: 10px 0;
+}
+
+.materials-section input[type="file"]::file-selector-button {
+    background: #2cd705;
+    color: #000;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-right: 10px;
+    font-weight: bold;
+}
+
+.materials-section input[type="file"]::file-selector-button:hover {
+    background: #26b904;
+}
+
+.upload-button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #2cd705;
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.upload-button:hover {
+    background: #26b904;
 }

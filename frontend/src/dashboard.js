@@ -1,33 +1,51 @@
 //dashboard.js
+
 import { useEffect, useState } from "react";
-import { Pie } from "react-chartjs-2";
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+import { Pie } from "react-chartjs-2";// react wrapper for chartjs 
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";// this is the import for making the chart manually.ells Chart.js which parts to enable so the pie chart can render correctly
 import "./dashboard.css";
 import { useRef } from "react";
 import { PieController } from "chart.js";
 
+const emptyApp = {
+    companyName: "",
+    jobTitle: "",
+    status: "Interview",
+    dueDate: "",
+    salary: "",
+    location: "",
+    Url: "",
+};
 ChartJS.register(ArcElement, Tooltip, Legend, PieController);//chart js features arc element =pie donut chart,Tooltip= pop up info when hovered,Legend =color
 function Dashboard() {
-    const [applications, setApplications] = useState([]);//current array 
-    const [showForm, setShowForm] = useState(false)
-    const [newApp, setNewApp] = useState({
-        companyName: "",
-        jobTitle: "",
-        status: "Interview",
-        dueDate: "",
-        salary: "",
-        location: "",
-        Url: "",
-    });
-    const canvasRef = useRef(null);  //  Canvas ref
+    const [applications, setApplications] = useState([]);//Empty array for job applications
+    const [showForm, setShowForm] = useState(false)//usestate false default hidden so it doesn't pop up in the dashboard
+
+    const [formMode, setFormMode] = useState("add"); // "add" or "edit"
+    const [currentAppId, setCurrentAppId] = useState(null);
+    const [newApp, setNewApp] = useState(emptyApp);
+
+    function editClick(app) {
+        setFormMode("edit");
+        setCurrentAppId(app._id);
+        setNewApp(app);
+        setShowForm(true);
+    }
+    function closeForm() {
+        setShowForm(false);
+        setFormMode("add");
+        setCurrentAppId(null);
+        setNewApp(emptyApp);
+    }
+    const canvasRef = useRef(null);  //useRef acts as a "permanent bookmark" that allows React to directly grab and control the HTML canvas element so external libraries like Chart.js can draw graphics on it.
     // Filtering Upcoming Interviews by due date
     const today = new Date();
-    today.setHours(0, 0, 0, 0); //????
+    today.setHours(0, 0, 0, 0);
 
     const twoWeeksLater = new Date();
     twoWeeksLater.setDate(today.getDate() + 14);
 
-    // upcoming = Interview apps within next 14 days
+
     const upcoming = applications.filter(app => {
         if (app.status !== "Interview" || !app.dueDate) return false;
 
@@ -44,6 +62,18 @@ function Dashboard() {
         const due = new Date(app.dueDate);
         return app.status !== "Interview" || due < today || due > twoWeeksLater;
     });
+    //filter for urgent app
+    const threeDaysLater = new Date();
+    threeDaysLater.setDate(today.getDate() + 3);
+
+    const urgent = applications.filter(app => {
+        if (app.status !== "Interview" || !app.dueDate) return false;
+        const due = app.dueDate;
+        const todayStr = today.toISOString().split('T')[0];
+        const threeDaysStr = threeDaysLater.toISOString().split('T')[0];
+        return due >= todayStr && due <= threeDaysStr;
+    });
+
     const appliedCount = applications.filter(app => app.status === "Applied").length;
     const pieData = {
         labels: ["Applied", "Upcoming Interviews"],
@@ -54,14 +84,45 @@ function Dashboard() {
             borderWidth: 2,
         }]
     };
+
+
+
+    //UPLOAD MATERIALS
     //const for tracking which application is being viewed/selected for materials section
     const [selectedAppForMaterials, setselectedAppForMaterials] = useState(null);////////////
+    const [selectedFile, setselectedFile] = useState(null);//state variable
+    const [materialType, setMaterialType] = useState("voice");//updates data
+    // if no file is chosen stop running the application
+    const voiceInputRef = useRef(null);
+    const fileInputRef = useRef(null);
+    function uploadMaterial() {
+        if (!selectedFile || !selectedAppForMaterials) {
+            return;
+        }
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        formData.append("application_id", selectedAppForMaterials._id);
+        formData.append("material_type", materialType);
+        fetch("http://127.0.0.1:5000/upload_material", {//flask route
+            method: "POST",
+            body: formData
+
+        })
+            .then(res => res.json())
+            .then(data => {
+                alert("Upload successful!");
+                setselectedFile(null); // This resets the button state
+                setMaterialType("voice");
+            })
+            .catch(err => console.error(err));
+    }
 
 
 
-    /// ADD APPLICATION connected to mongo db
+    /// ADD APPLICATION 
     function addApplication(app) {
-        fetch("http://127.0.0.1:5000/add_application", {
+
+        fetch("http://127.0.0.1:5000/add_application", {//flask route
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(app),
@@ -70,49 +131,77 @@ function Dashboard() {
             .then(res => res.json())
             .then(data => {
                 // Update local state with the object returned from backend (includes _id from MongoDB)
-                setApplications([...applications, data]);
+                setApplications([...applications, data]);//adds new app.
                 setShowForm(false);
-                // Reset form
-                setNewApp({
-                    companyName: "",
-                    jobTitle: "",
-                    status: "Interview",
-                    dueDate: "",
-                    salary: "",
-                    location: "",
-                    Url: "",
-                });
+                setNewApp(emptyApp);
+                setFormMode("add");
+                setCurrentAppId(null);
             })
             .catch(err => console.error("Error adding application:", err));
     }
-    ///pie chart use effect 
-    useEffect(() => {
-        const ctx = canvasRef.current?.getContext('2d');
-        if (ctx && pieData.datasets[0].data.some(d => d > 0)) {
-            new ChartJS(ctx, {
-                type: 'pie',
-                data: pieData,
-                options: { responsive: false, plugins: { legend: { position: "bottom" } } }
-            });
-        }
-    }, [applications]);
+    //DELETE APPLICATION
+    function deleteApplication(id) {
+        fetch(`http://127.0.0.1:5000/delete_application/${id}`, { //id must be in the browser url
+            method: "DELETE",
+        })
 
-    //use effect populates applicatios from mongodb.Each application has status,title etc.
-    useEffect(() => {
+            .then(res => res.json())
+            .then(data => { //update UI
+                setApplications(prevApplications => prevApplications.filter(app => app._id !== id));// this refreshes
+                alert("Application deleted.");
+            })
+            .catch(err => console.error("error deleting:", err));
+    }
+    //UPDATE APPLICATION
+
+    function updateApplication(id, updatedApplications) { ////////////////////////////////////////////
+        fetch(`http://127.0.0.1:5000/update_application/${id}`, {
+            method: "PUT",
+            headers: { "content-type": "application/json" },//send json,
+            body: JSON.stringify(updatedApplications)//send data
+        })
+            .then(res => {
+                if (!res.ok) throw new Error("Server update failed");
+                return res.json();
+            })
+            .then(data => {
+                setApplications(prevApplications =>
+                    prevApplications.map(app =>
+                        app._id === id ? { ...app, ...updatedApplications } : app
+                    )
+                );
+                alert("Application updated successfully!");
+                closeForm();
+            })
+            .catch(err => console.error("Update error:", err)); // Fixed the label
+    }
+
+
+    /////CHART JS ADJUST LATER ON
+    ///pie chart use effect using Vanilla Js Not ceact chartjs 2
+    /*  useEffect(() => {
+          const ctx = canvasRef.current?.getContext('2d');
+          if (ctx && pieData.datasets[0].data.some(d => d > 0)) {
+              new ChartJS(ctx, {
+                  type: 'pie',
+                  data: pieData,
+                  options: { responsive: false, plugins: { legend: { position: "bottom" } } }
+              });
+          }
+      }, [applications]); */
+
+    useEffect(() => { //use effect populates applicatios from mongodb.Each application has status,title etc.
         fetch("http://127.0.0.1:5000/dashboard")
             .then(res => res.json())
             .then(data => setApplications(data));
     }, []);
-
-
-
 
     return (
         <div>
             {showForm && (
                 <div className="popup-form">
                     {/*close button for the new application button*/}
-                    <button className="close-button" onClick={() => setShowForm(false)}>
+                    <button className="close-button" onClick={closeForm}>
                         x
                     </button>
                     <h3>New Application</h3>
@@ -201,39 +290,94 @@ function Dashboard() {
                         />
                     </label>
 
-                    <button onClick={() => addApplication(newApp)}>SAVE</button>
+                    <button
+                        onClick={() => {
+                            if (formMode === "edit") {
+                                updateApplication(currentAppId, newApp);
+                            } else {
+                                addApplication(newApp);
+                            }
+                        }}
+                    >
+                        {formMode === "edit" ? "UPDATE" : "SAVE"}
+                    </button>
                 </div>
 
             )}
+            {/*MATERIALS */}
             {selectedAppForMaterials && (
                 <div className="popup-form-materials">
                     <button className="close-button" onClick={() => setselectedAppForMaterials(null)}>x</button>
-                    <h3>Materials:{selectedAppForMaterials.companyName}</h3>
+
                     <div className="materials-container">
-                        {/* Left Section */}
+                        {/* Add Recording Section */}
                         <div className="materials-section">
                             <h4>Add Recording</h4>
-                            <div className="placeholderbox">🎙️ Voice Notes</div>
+                            <input
+                                type="file"
+                                ref={voiceInputRef}
+                                style={{ display: "none" }}//hides default button
+                                accept="audio/*,.mp3"
+                                onChange={(e) => {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                        setselectedFile(file);
+                                        setMaterialType("voice");
+                                    }
+                                }}
+                            />
+                            {!selectedFile || materialType !== "voice" ? (
+                                <button onClick={() => voiceInputRef.current.click()} className="upload-button">
+                                    Select File
+                                </button>
+                            ) : (
+                                <button onClick={uploadMaterial} className="upload-button" style={{ background: '#ff9800' }}>
+                                    Uploaded {selectedFile.name}
+                                </button>
+                            )}{/*custom button */}
                         </div>
-                        {/* Right Section */}
+                        {/* Add Files Section */}
                         <div className="materials-section">
                             <h4>Add Files</h4>
-                            <div className="placeholderbox">📁 PDF/Docs</div>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                style={{ display: "none" }}//hides default button
+                                accept=".py,.java,.txt,.png,.pdf,.jpg"
+                                onChange={(e) => {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                        setselectedFile(file);
+                                        setMaterialType("");
+                                    }
+                                }}
+                            />
+                            {!selectedFile || materialType !== "file" ? (
+                                <button onClick={() => fileInputRef.current.click()} className="upload-button">
+                                    Select File
+                                </button>
+                            ) : (
+                                <button onClick={uploadMaterial} className="upload-button" style={{ background: '#ff9800' }}>
+                                    Uploaded {selectedFile.name}
+                                </button>
+                            )}{/*custom button */}
+                            {/*Note input file creates a default button.To fix that and use custom buttons, hide the default button and create a trigger when the custom button is clicked */}
                         </div>
                     </div>
                 </div>
             )}
+
             <div>
-
+                {/*DAHSBOARD */}
                 <div>
-
+                    {/**Title */}
                     <h1 className="dashboard-title">JobTrack</h1>
 
                     {/* Main dashboard container */}
                     <div className="dashboard-container">
-                        {/* ADD GRAPHICS LATER ON  */}
+                        {/* ADD GRAPHICS LATER ON HERE */}
                         <div className="dashboard-header">
-                            <h4>Dashboard Graphics</h4>
+                            <h4></h4>
                         </div>
                         <div className="chart-container">
 
@@ -260,7 +404,7 @@ function Dashboard() {
 
                             </div>
 
-                            {upcoming.map(app => (/*Small headers for application*/
+                            {upcoming.map(app => (
                                 <div key={app._id} className="application-card-row">
                                     <span className="company">{app.companyName}</span>
                                     <span className="job">{app.jobTitle}</span>
@@ -268,13 +412,16 @@ function Dashboard() {
                                     <span className="due-date">{app.dueDate}</span>
                                     <span className="salary">{app.salary}</span>
                                     <span className="location">{app.location}</span>
-                                    <span className="url">{app.Url ? <a href={app.Url}>Link</a> : "No Link"/*Is there a URL? then show this link: otherwise show No link */}
+                                    <span className="url">{app.Url ? <a href={app.Url}>Link</a> : "No Link"}
 
                                     </span>
                                     <span className="materials"><button className="add-material-button" onClick={() => setselectedAppForMaterials(app)}>
                                         +
                                     </button></span>
-                                    <span className="actions">Edit</span>
+                                    <span className="actions">
+                                        <button className="delete-application-button" onClick={() => deleteApplication(app._id)}>Delete</button>
+                                        <button className="update-application-button" onClick={() => editClick(app)}>Update</button>
+                                    </span>
                                 </div>
                             ))}
                             {upcoming.length === 0 && <p>No upcoming interviews</p>}
@@ -291,8 +438,9 @@ function Dashboard() {
                                 <span className="location">LOCATION</span>
                                 <span className="materials">MATERIALS</span>
                                 <span className="actions">ACTIONS</span>
+                                <span className="url">LINK</span>
                             </div>
-                            {upcoming.map(app => (/*Small headers for application*/
+                            {urgent.map(app => (/*Small headers for application*/
                                 <div key={app._id} className="application-card-row">
                                     <span className="company">{app.companyName}</span>
                                     <span className="job">{app.jobTitle}</span>
@@ -300,16 +448,20 @@ function Dashboard() {
                                     <span className="due-date">{app.dueDate}</span>
                                     <span className="salary">{app.salary}</span>
                                     <span className="location">{app.location}</span>
-                                    <span className="url">{app.Url ? <a href={app.Url}>Link</a> : "No Link"/*Is there a URL? then show this link: otherwise show No link */}
+                                    <span className="url">{app.Url ? <a href={app.Url}>Link</a> : "No Link"}
 
                                     </span>
                                     <span className="materials"><button className="add-material-button" onClick={() => setselectedAppForMaterials(app)}>
                                         +
                                     </button></span>
-                                    <span className="actions">Edit</span>
+                                    <span className="actions">
+                                        <button className="delete-application-button" onClick={() => deleteApplication(app._id)}>Delete</button>
+                                        <button className="update-application-button" onClick={() => editClick(app)}>Update</button>
+
+                                    </span>
                                 </div>
                             ))}
-                            {upcoming.length === 0 && <p>No upcoming interviews</p>}
+                            {urgent.length === 0 && <p>No upcoming interviews</p>}
                         </div>
 
                         {/* Past Applications */}
@@ -337,7 +489,10 @@ function Dashboard() {
                                     <span className="materials">
                                         <button className="add-material-button" onClick={() => setselectedAppForMaterials(app)}>+</button>
                                     </span>
-                                    <span className="actions">Edit</span>
+                                    <span className="actions">
+                                        <button className="delete-application-button" onClick={() => deleteApplication(app._id)}>Delete</button>
+                                        <button className="update-application-button" onClick={() => editClick(app)}>Update</button>
+                                    </span>
                                 </div>
                             ))}
                         </div>
@@ -346,14 +501,18 @@ function Dashboard() {
             </div>
         </div>
     );
-
 }
 
 export default Dashboard;
 
-
-//useState Purpose: It lets your component store and manage state
+//Notes:
+//The return statement is the component's final output that tells the browser exactly what HTML and data to display on the screen.
+//useState is the component's internal memory for data that changes, while useEffect is a self-acting trigger that runs code (like fetching data) automatically when the page loads or updates.
+//A React wrapper is a "helper" that takes a tool not originally built for React and turns it into a React Component so you can use it like any other tag (e.g., <Pie /> or <Bar />).
 // 1. DATA FLOW: useEffect fetches MongoDB docs -> setApplications updates state -> React re-renders the UI.
 // 4. TABLE ALIGNMENT: 'application-titles' (Header) and 'application-card-row' (Data) must BOTH have exactly 8 <span> elements.
 // 5. FLEXBOX RULES: 'flex: 1' in CSS divides the 100% width by the number of spans; if counts don't match, columns won't align.
 // 6. PLACEHOLDERS: Always use a value (like "-") in empty spans to prevent CSS layout collapse and maintain the 8-column grid.
+//In React, .map() is a JavaScript function used inside the return statement to transform a list of data (an array) into a list of visual elements (HTML).
+//## How it works
+//Since you don't know if a user has 5 job applications or 50, you can't hardcode the HTML for each one. Instead, you use .map() to say: "For every single item in my applications array, create one table row."
