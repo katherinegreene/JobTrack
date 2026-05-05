@@ -4,6 +4,40 @@ body {
     background-color: #000;
 }
 
+/*Upcuming and urgent containers in dashboard*/
+.stats-row {
+    position: relative;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    background: transparent;
+    padding: 12px;
+    gap: 17px;
+    pointer-events: auto;
+
+}
+
+.stat-card {
+    width: 200px;
+    height: 200px;
+    background: #1a1a1a;
+    color: white;
+    border-radius: 14px;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.stat-card h4 {
+    font-size: x-large;
+    color: whitesmoke;
+}
+
+
+/*this one is for the number*/
+
+.stat-card p {
+    font-size: xx-large;
+}
 
 .dashboard-container {
     padding: 0;
@@ -21,7 +55,7 @@ body {
     /*works with justift content flex end*/
     padding: 20px;
     margin-bottom: 30px;
-    border-bottom: 1px solid #222;
+
     justify-content: flex-end;
     /*flex end moves button and graphics to the right flex-start for left*/
 }
@@ -48,6 +82,8 @@ body {
 /* Sections upcoming past etc */
 .section {
     margin-bottom: 40px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 
@@ -62,7 +98,8 @@ body {
     background-color: #111;
     border: 1px solid #222;
     border-radius: 8px;
-
+    max-width: none;
+    width: 100%;
     margin-bottom: 15px;
     transition: all 0.2s;
 }
@@ -109,8 +146,9 @@ body {
     border-bottom: 1px solid #222;
     background-color: #111;
     width: 100%;
-    padding-left: 20px;
-    padding-right: 20px;
+
+    overflow-x: hidden;
+    flex-wrap: nowrap;
 }
 
 /*span ensures the data spans have the same width as the header/title*/
@@ -216,11 +254,6 @@ body {
     min-width: 0;
 }
 
-.chart-container {
-    flex: 0 0 220px;
-    width: 220px;
-    margin-left: auto;
-}
 
 .chart-canvas {
     width: 180px !important;
@@ -228,17 +261,19 @@ body {
     display: block;
 }
 
-/*?*/
-@media (max-width: 768px) {
-    .dashboard-main {
-        flex-direction: column;
-    }
-
-    .chart-container {
-        margin-left: 0;
-        width: 100%;
-    }
+.chart-container {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    height: 100% !important;
 }
+
+
+
+
+
+
 
 /*ADD MATERIALS BUTTON*/
 /* Container for the two sections */
@@ -307,10 +342,7 @@ body {
     font-style: italic;
 }
 
-.placeholder-box span {
-    color: #fff;
-    margin-left: 10px;
-}
+
 
 .materials-section h4 {
     margin-top: 0;
@@ -344,26 +376,16 @@ body {
     padding: 40px 20px 20px 20px;
 }
 
-/**/
-.materials-section input[type="file"] {
-    width: 100%;
+
+.delete-button {
+    background: #f4776e;
     color: #fff;
-    margin: 10px 0;
-}
-
-.materials-section input[type="file"]::file-selector-button {
-    background: #2cd705;
-    color: #000;
     border: none;
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 6px 10px;
+    border-radius: 5px;
     cursor: pointer;
-    margin-right: 10px;
     font-weight: bold;
-}
 
-.materials-section input[type="file"]::file-selector-button:hover {
-    background: #26b904;
 }
 
 .upload-button {
@@ -380,3 +402,6 @@ body {
 .upload-button:hover {
     background: #26b904;
 }
+
+
+/***********/

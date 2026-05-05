@@ -1,11 +1,13 @@
 //dashboard.js
 
 import { useEffect, useState } from "react";
-import { Pie } from "react-chartjs-2";// react wrapper for chartjs 
+import { useNavigate } from "react-router-dom";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";// this is the import for making the chart manually.ells Chart.js which parts to enable so the pie chart can render correctly
 import "./dashboard.css";
 import { useRef } from "react";
 import { PieController } from "chart.js";
+import { useMemo, useCallback } from "react";
+
 
 const emptyApp = {
     companyName: "",
@@ -18,13 +20,17 @@ const emptyApp = {
 };
 ChartJS.register(ArcElement, Tooltip, Legend, PieController);//chart js features arc element =pie donut chart,Tooltip= pop up info when hovered,Legend =color
 function Dashboard() {
+    const navigate = useNavigate();
     const [applications, setApplications] = useState([]);//Empty array for job applications
     const [showForm, setShowForm] = useState(false)//usestate false default hidden so it doesn't pop up in the dashboard
-
     const [formMode, setFormMode] = useState("add"); // "add" or "edit"
     const [currentAppId, setCurrentAppId] = useState(null);
     const [newApp, setNewApp] = useState(emptyApp);
+    const [deletingMaterialId, setDeletingMaterialId] = useState(null);
 
+
+
+    //functions for edit application buttton
     function editClick(app) {
         setFormMode("edit");
         setCurrentAppId(app._id);
@@ -38,88 +44,124 @@ function Dashboard() {
         setNewApp(emptyApp);
     }
     const canvasRef = useRef(null);  //useRef acts as a "permanent bookmark" that allows React to directly grab and control the HTML canvas element so external libraries like Chart.js can draw graphics on it.
-    // Filtering Upcoming Interviews by due date
+
+
+
+    // CONTAINERS IN DASHBOARD THAT COUNTS UPCOMING AND URGENT APPLICATİONS
+    // exclude anything that is not Applied, and exclude anything without a due date
+    const thisMonth = new Date().getMonth();
+    const thisYear = new Date().getFullYear();
+
+    const appliedThisMonth = applications.filter(app => {
+        if (app.status !== "Applied" || !app.dueDate)
+            return false;
+        const date = new Date(app.dueDate);
+        return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
+
+    }).length;
+
+
+
+    // FILTERING 
+    // //Upcoming,Past,Urgent
+
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
+    today.setHours(0, 0, 0, 0);//resets the time "midnight(00.00.00)"
+    const todayStr = today.toISOString().split('T')[0];// this is a way to split an IOS string("2026-04-28T11:23:45Z") it splits at T and takes the initial part.for easy comparision 
     const twoWeeksLater = new Date();
-    twoWeeksLater.setDate(today.getDate() + 14);
 
 
+    //UPCOMING 
     const upcoming = applications.filter(app => {
-        if (app.status !== "Interview" || !app.dueDate) return false;
+        if ((app.status !== "Interview" && app.status !== "Offer") || !app.dueDate) return false;
 
-        const due = app.dueDate; // still a string "YYYY-MM-DD"
-        const todayStr = today.toISOString().split('T')[0];
-        const twoWeeksStr = twoWeeksLater.toISOString().split('T')[0];
+        const due = app.dueDate;
 
-        return due >= todayStr && due <= twoWeeksStr;
+        return due >= todayStr;// keep only jobs happening today or in the future.This logic works because I made IOS dates as sortable strings.Filtering works with comparing dates
     });
 
-    // past = anything outside upcoming (either status not Interview or past Interview)
-    const past = applications.filter(app => {
-        if (!app.dueDate) return true; // no date, consider past
-        const due = new Date(app.dueDate);
-        return app.status !== "Interview" || due < today || due > twoWeeksLater;
-    });
-    //filter for urgent app
+    //URGENT
     const threeDaysLater = new Date();
     threeDaysLater.setDate(today.getDate() + 3);
 
     const urgent = applications.filter(app => {
-        if (app.status !== "Interview" || !app.dueDate) return false;
+        if ((app.status !== "Interview" && app.status !== "Offer") || !app.dueDate) return false;
         const due = app.dueDate;
         const todayStr = today.toISOString().split('T')[0];
         const threeDaysStr = threeDaysLater.toISOString().split('T')[0];
-        return due >= todayStr && due <= threeDaysStr;
+        return due >= todayStr && due <= threeDaysStr;  // applications that is due in 3 days considered as urgent
     });
 
+    // PAST = before due date
+    const past = applications.filter(app => {
+        if (!app.dueDate || app.dueDate === "") {
+            console.warn('Missing date')
+            return true;
+        }
+        const due = app.dueDate;
+        const isPast = app.dueDate < today;
+        return due < todayStr;
+    });
+
+
+
     const appliedCount = applications.filter(app => app.status === "Applied").length;
-    const pieData = {
-        labels: ["Applied", "Upcoming Interviews"],
+
+    // COMPUTE THE PIE CHART BASED ON STATUS ///PIE CHART
+
+    // note Use memo is a react hook that cahces the computed value so it doesnt get calculated each render
+    //Note: pie chart uses vanila js lib mixed with react 
+
+    const statusCounts = useMemo(() => {//Important Note:use memo is for efficiency.Tells react to only update the chart data if there is a change in applications.Ran into issue prev about rendering pie with each click
+        const counts = {};
+
+        applications.forEach(app => {
+
+            counts[app.status] = (counts[app.status] || 0) + 1;//increment app count by one if app status exists
+        });
+
+        return counts;
+    }, [applications]);
+
+    const statusLabels = Object.keys(statusCounts);
+    const statusData = Object.values(statusCounts);
+    const pieData = useMemo(() => ({
+        labels: Object.keys(statusCounts), //keys are the statuses applied,interview etc. Values are the nuber of the
         datasets: [{
-            data: [appliedCount, upcoming.length],
-            backgroundColor: ["#4CAF50", "#FF9800"],
+            data: Object.values(statusCounts),
+            backgroundColor: ["#4CAF50", "#f15b2d", "#2196F3", "#9E9E9E"],
             borderColor: "#ffffff",
             borderWidth: 2,
-        }]
-    };
+        }],
+    }), [statusCounts]);
+    const chartRef = useRef(null);
+    useEffect(() => {
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
 
 
-
-    //UPLOAD MATERIALS
-    //const for tracking which application is being viewed/selected for materials section
-    const [selectedAppForMaterials, setselectedAppForMaterials] = useState(null);////////////
-    const [selectedFile, setselectedFile] = useState(null);//state variable
-    const [materialType, setMaterialType] = useState("voice");//updates data
-    // if no file is chosen stop running the application
-    const voiceInputRef = useRef(null);
-    const fileInputRef = useRef(null);
-    function uploadMaterial() {
-        if (!selectedFile || !selectedAppForMaterials) {
-            return;
+        // If we already have a chart, remove it
+        if (chartRef.current) {
+            chartRef.current.destroy();
         }
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-        formData.append("application_id", selectedAppForMaterials._id);
-        formData.append("material_type", materialType);
-        fetch("http://127.0.0.1:5000/upload_material", {//flask route
-            method: "POST",
-            body: formData
 
-        })
-            .then(res => res.json())
-            .then(data => {
-                alert("Upload successful!");
-                setselectedFile(null); // This resets the button state
-                setMaterialType("voice");
-            })
-            .catch(err => console.error(err));
-    }
+        //Create the pie chart
+        chartRef.current = new ChartJS(ctx, {
+            type: "pie",
+            data: pieData,
+            options: {
+                plugins: {
+                    legend: { position: "bottom" },
+                },
+            },
+        });
 
 
+    }, [pieData]);
 
-    /// ADD APPLICATION 
+    //ADD APPLICATION 
     function addApplication(app) {
 
         fetch("http://127.0.0.1:5000/add_application", {//flask route
@@ -131,7 +173,7 @@ function Dashboard() {
             .then(res => res.json())
             .then(data => {
                 // Update local state with the object returned from backend (includes _id from MongoDB)
-                setApplications([...applications, data]);//adds new app.
+                setApplications([...applications, data]);//adds new app to local, UI shows it.
                 setShowForm(false);
                 setNewApp(emptyApp);
                 setFormMode("add");
@@ -139,36 +181,42 @@ function Dashboard() {
             })
             .catch(err => console.error("Error adding application:", err));
     }
+
+
+
     //DELETE APPLICATION
     function deleteApplication(id) {
-        fetch(`http://127.0.0.1:5000/delete_application/${id}`, { //id must be in the browser url
+        fetch(`http://127.0.0.1:5000/delete_application/${id}`, { //note: id must be in the browser url
             method: "DELETE",
         })
 
-            .then(res => res.json())
+            .then(res => res.json())//turns into json for react
             .then(data => { //update UI
-                setApplications(prevApplications => prevApplications.filter(app => app._id !== id));// this refreshes
+                setApplications(prevApplications => prevApplications.filter(app => app._id !== id));// this checks if the application that wanted to be deleted matches the one in applications.Rebuilding a list without the deleted app
                 alert("Application deleted.");
             })
             .catch(err => console.error("error deleting:", err));
     }
     //UPDATE APPLICATION
 
-    function updateApplication(id, updatedApplications) { ////////////////////////////////////////////
+    function updateApplication(id, updatedApplications) {
         fetch(`http://127.0.0.1:5000/update_application/${id}`, {
             method: "PUT",
             headers: { "content-type": "application/json" },//send json,
             body: JSON.stringify(updatedApplications)//send data
         })
             .then(res => {
-                if (!res.ok) throw new Error("Server update failed");
+                if (!res.ok) throw new Error("Server update failed");// this is just a safety check for servers success code
                 return res.json();
             })
             .then(data => {
                 setApplications(prevApplications =>
-                    prevApplications.map(app =>
-                        app._id === id ? { ...app, ...updatedApplications } : app
-                    )
+                    prevApplications.map(app => {
+                        if (app._id === id) {
+                            return { ...app, ...updatedApplications };
+                        }
+                        return app;
+                    })
                 );
                 alert("Application updated successfully!");
                 closeForm();
@@ -177,27 +225,86 @@ function Dashboard() {
     }
 
 
-    /////CHART JS ADJUST LATER ON
-    ///pie chart use effect using Vanilla Js Not ceact chartjs 2
-    /*  useEffect(() => {
-          const ctx = canvasRef.current?.getContext('2d');
-          if (ctx && pieData.datasets[0].data.some(d => d > 0)) {
-              new ChartJS(ctx, {
-                  type: 'pie',
-                  data: pieData,
-                  options: { responsive: false, plugins: { legend: { position: "bottom" } } }
-              });
-          }
-      }, [applications]); */
 
-    useEffect(() => { //use effect populates applicatios from mongodb.Each application has status,title etc.
+    useEffect(() => {// auto run opens dashboard 
         fetch("http://127.0.0.1:5000/dashboard")
-            .then(res => res.json())
-            .then(data => setApplications(data));
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            })
+            .then(data => setApplications(data))
+            .catch(err => {
+                console.error("FETCH ERROR:", err);
+                alert("Failed to fetch data. Check backend server and network.");
+            });
     }, []);
 
+
+
+    //UPLOAD MATERIALS
+
+    const [materials, setMaterials] = useState({});// this  stores uploaded file by the id
+    const [selectedAppForMaterials, setselectedAppForMaterials] = useState(null);//current selected job
+    const [selectedFile, setselectedFile] = useState(null);//the chosen file,not uploaded
+    const [materialType, setMaterialType] = useState("voice");
+
+    const voiceInputRef = useRef(null);
+    const fileInputRef = useRef(null);
+    function uploadMaterial() {
+        if (!selectedFile || !selectedAppForMaterials) {
+            return;
+        }
+        const formData = new FormData();// this is for sending files to backend
+        formData.append("file", selectedFile);// adds files
+        formData.append("application_id", selectedAppForMaterials._id);
+        formData.append("material_type", materialType);
+        fetch("http://127.0.0.1:5000/upload_material", {// sends to backend
+            method: "POST",
+            body: formData
+
+        })
+            .then(res => res.json())//json response
+            .then(data => {//success
+                alert("Upload successful!");
+                setselectedFile(null); // This resets the button state important
+                setMaterialType("voice");
+            })
+            .catch(err => console.error(err));// log error 
+    }
+    // fetch materials
+    const fetchMaterials = (app) => { //takes the job obj
+        setselectedAppForMaterials(app);//current app
+        fetch(`http://127.0.0.1:5000/materials/${app._id}`)
+            .then(res => res.json())
+            .then(files => setMaterials(prev => ({ ...prev, [app._id]: files }))) //important
+            .catch(console.error);
+    };
+    // fetch returns an object , res.json() reads it parses it from json string
+    //DELETE MATERIAL
+    const deleteMaterial = (materialId) => {
+        const userConfirmed = window.confirm("Delete this file?");
+        if (!userConfirmed) return;
+        fetch(`http://127.0.0.1:5000/delete_material/${materialId}`, {
+            method: "DELETE",
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    fetchMaterials(selectedAppForMaterials); //refreshes list
+                }
+            })
+            .catch(error => {
+                console.error("delete error", error);
+            });
+    };
+
     return (
+
+
         <div>
+
             {showForm && (
                 <div className="popup-form">
                     {/*close button for the new application button*/}
@@ -315,14 +422,14 @@ function Dashboard() {
                             <h4>Add Recording</h4>
                             <input
                                 type="file"
-                                ref={voiceInputRef}
+                                ref={voiceInputRef}// means give my js variable a direct handle to this HTML input so I can click it programmatically
                                 style={{ display: "none" }}//hides default button
                                 accept="audio/*,.mp3"
                                 onChange={(e) => {
                                     const file = e.target.files[0];
-                                    if (file) {
-                                        setselectedFile(file);
-                                        setMaterialType("voice");
+                                    if (file) {// if file exists store object in state
+                                        setselectedFile(file);//stores in react state
+                                        setMaterialType("voice");// tels upload materials its voice file
                                     }
                                 }}
                             />
@@ -331,8 +438,8 @@ function Dashboard() {
                                     Select File
                                 </button>
                             ) : (
-                                <button onClick={uploadMaterial} className="upload-button" style={{ background: '#ff9800' }}>
-                                    Uploaded {selectedFile.name}
+                                <button onClick={uploadMaterial} className="upload-button" >
+                                    Upload {selectedFile.name}
                                 </button>
                             )}{/*custom button */}
                         </div>
@@ -342,27 +449,52 @@ function Dashboard() {
                             <input
                                 type="file"
                                 ref={fileInputRef}
-                                style={{ display: "none" }}//hides default button
+                                style={{ display: "none" }}//hides default button that comes with input tag
                                 accept=".py,.java,.txt,.png,.pdf,.jpg"
                                 onChange={(e) => {
                                     const file = e.target.files[0];
                                     if (file) {
                                         setselectedFile(file);
-                                        setMaterialType("");
+                                        setMaterialType("file");
                                     }
                                 }}
                             />
-                            {!selectedFile || materialType !== "file" ? (
-                                <button onClick={() => fileInputRef.current.click()} className="upload-button">
-                                    Select File
+                            {selectedFile && materialType == "file" ? (
+                                <button onClick={uploadMaterial} className="upload-button">
+                                    Upload {selectedFile.name}
                                 </button>
                             ) : (
-                                <button onClick={uploadMaterial} className="upload-button" style={{ background: '#ff9800' }}>
-                                    Uploaded {selectedFile.name}
+                                <button onClick={() => fileInputRef.current.click()} className="upload-button" >
+                                    Select File
                                 </button>
                             )}{/*custom button */}
+
+
                             {/*Note input file creates a default button.To fix that and use custom buttons, hide the default button and create a trigger when the custom button is clicked */}
+                            {/*MATERIALS LIST POP UP */}
+                            <div style={{ marginTop: '20px', padding: '10px' }}>
+                                <h4>Uploaded Files</h4>
+                                {materials[selectedAppForMaterials?._id]?.length > 0 ? (
+                                    materials[selectedAppForMaterials._id].map(file => (
+                                        <div key={file.material_id} style={{ padding: '5px', borderBottom: '1px solid #eee' }}>
+
+                                            {/*if file exist show the link if not show nothing.Checks baed on current job id  */}
+                                            <a href={`http://127.0.0.1:5000/download/${file.material_id}`} download>{file.filename}</a>
+                                            <button
+                                                onClick={() => deleteMaterial(file.material_id)}
+                                                className="delete-button"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p>No files uploaded yet</p>
+                                )}
+                            </div>
+                            {/*user clicks the file link.Browser requests /download/filename from Flask and reads form disk*/}
                         </div>
+
                     </div>
                 </div>
             )}
@@ -371,22 +503,50 @@ function Dashboard() {
                 {/*DAHSBOARD */}
                 <div>
                     {/**Title */}
-                    <h1 className="dashboard-title">JobTrack</h1>
+                    <h1 className="dashboard-title">JobTrack 💼</h1>
 
                     {/* Main dashboard container */}
                     <div className="dashboard-container">
-                        {/* ADD GRAPHICS LATER ON HERE */}
                         <div className="dashboard-header">
-                            <h4></h4>
                         </div>
-                        <div className="chart-container">
+                        {/*STAT ROW COUNT FOR URGENT OR UPCOMING*/}
+                        <div className="stats-row">
+                            <div className="stat-card">
+                                <h4>Upcoming</h4>
+                                <p>{upcoming.length}</p>
+                            </div>
+                            <div className="stat-card">
+                                <h4>Urgent</h4>
+                                <p>{urgent.length}</p>
+                            </div>
+                            {/**CHART */}
+                            <div style={{
+                                width: "200px",
+                                height: "250px",
+                                display: "flex",
 
+                                margin: "20px auto",
+                                zIndex: 10
+                            }}>
+                                <div className="chart-container">
+                                    <canvas
+                                        ref={canvasRef}
+                                        style={{
+                                            width: "200px",
+                                            height: "200px",
+                                            display: "block",
+                                        }}
+                                    />
+                                </div>
+                            </div>
                         </div>
+
 
                         <div className="dashboard-header">
                             <button className="add-application-button" /* ADD APPLICATION BUTTON */ onClick={() => setShowForm(true)}>
                                 Add Application
                             </button>
+
                         </div>
                         <div className="section application-card" /*Upcoming Interviews*/>
 
@@ -415,7 +575,7 @@ function Dashboard() {
                                     <span className="url">{app.Url ? <a href={app.Url}>Link</a> : "No Link"}
 
                                     </span>
-                                    <span className="materials"><button className="add-material-button" onClick={() => setselectedAppForMaterials(app)}>
+                                    <span className="materials"><button className="add-material-button" onClick={() => fetchMaterials(app)}>
                                         +
                                     </button></span>
                                     <span className="actions">
@@ -436,9 +596,10 @@ function Dashboard() {
                                 <span className="due-date">DUE DATE</span>
                                 <span className="salary">SALARY</span>
                                 <span className="location">LOCATION</span>
-                                <span className="materials">MATERIALS</span>
-                                <span className="actions">ACTIONS</span>
                                 <span className="url">LINK</span>
+                                <span className="actions">MATERIALS</span>
+                                <span className="materials">ACTIONS</span>
+
                             </div>
                             {urgent.map(app => (/*Small headers for application*/
                                 <div key={app._id} className="application-card-row">
@@ -451,7 +612,7 @@ function Dashboard() {
                                     <span className="url">{app.Url ? <a href={app.Url}>Link</a> : "No Link"}
 
                                     </span>
-                                    <span className="materials"><button className="add-material-button" onClick={() => setselectedAppForMaterials(app)}>
+                                    <span className="materials"><button className="add-material-button" onClick={() => fetchMaterials(app)}>
                                         +
                                     </button></span>
                                     <span className="actions">
@@ -474,6 +635,7 @@ function Dashboard() {
                                 <span className="due-date">DUE DATE</span>
                                 <span className="salary">SALARY</span>
                                 <span className="location">LOCATION</span>
+                                <span className="url">LINK</span>
                                 <span className="materials">MATERIALS</span>
                                 <span className="actions">ACTIONS</span>
                             </div>
@@ -486,8 +648,11 @@ function Dashboard() {
                                     <span className="due-date">{app.dueDate}</span>
                                     <span className="salary">{app.salary}</span>
                                     <span className="location">{app.location}</span>
+                                    <span className="url">{app.Url ? <a href={app.Url}>Link</a> : "No Link"}
+
+                                    </span>
                                     <span className="materials">
-                                        <button className="add-material-button" onClick={() => setselectedAppForMaterials(app)}>+</button>
+                                        <button className="add-material-button" onClick={() => fetchMaterials(app)}>+</button>
                                     </span>
                                     <span className="actions">
                                         <button className="delete-application-button" onClick={() => deleteApplication(app._id)}>Delete</button>
@@ -515,4 +680,35 @@ export default Dashboard;
 // 6. PLACEHOLDERS: Always use a value (like "-") in empty spans to prevent CSS layout collapse and maintain the 8-column grid.
 //In React, .map() is a JavaScript function used inside the return statement to transform a list of data (an array) into a list of visual elements (HTML).
 //## How it works
-//Since you don't know if a user has 5 job applications or 50, you can't hardcode the HTML for each one. Instead, you use .map() to say: "For every single item in my applications array, create one table row."
+//Since we don't know if a user has 5 job applications or 50, you can't hardcode the HTML for each one. Instead, you use .map() to say: "For every single item in my applications array, create one table row."
+//then(res => { ... }) attaches a handler to a Promise: it runs the function when the asynchronous operation (like fetch) completes successfully, passing the resolved value as res. Inside, you check the response status (if (!res.ok)) and use return res.json() to parse the response body as JSON, chaining the next step in the Promise flow. Each .then represents a sequential step that executes only after the previous one finishes, while catch handles any errors in the chain.
+
+
+//React Notes Syntax:
+/**
+ * 
+.then() and .catch()
+.then() runs after the request succeeds.
+.catch() runs if something fails.
+In fetch(), .then() is usually used to get the response and convert it with response.json(), then update state.
+.catch() is used to handle errors like network failure or thrown errors.developer.mozilla+2
+Where to use them
+Use them anytime you call an API with fetch() or any Promise-based code. In  dashboard, they are used after backend requests like add, update, delete, and upload because you need to wait for the server reply before changing the UI.learnjavascript+2
+Simple note version
+
+fetch() returns a Promise.
+.then() handles success.
+.catch() handles errors.
+response.json() turns the response into usable JavaScript data.
+Check response.ok because fetch() does not reject just because the server returns a 404 or 500.developer.mozilla+1
+useRef vs useEffect
+useRef is for storing a value or getting a direct reference to a DOM element without causing re-renders.
+useEffect runs code after render, like fetching data or setting up a chart.perssondennis+1
+Very short difference
+useRef = point to something or store something.
+useEffect = run side effects after the component renders.leewarrick+2
+
+useRef is used for the canvas and file inputs.
+useEffect is used to fetch dashboard data and draw the pie chart.perssondennis+1
+
+ */
