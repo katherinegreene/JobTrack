@@ -67,7 +67,7 @@ function Dashboard() {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);//resets the time "midnight(00.00.00)"
-    const todayStr = today.toISOString().split('T')[0];// this is a way to split an IOS string("2026-04-28T11:23:45Z") it splits at T and takes the initial part.for easy comparision 
+    const todayStr = today.toISOString().split('T')[0];// this is a way to split an ISO string("2026-04-28T11:23:45Z") it splits at T and takes the initial part.for easy comparision 
     const twoWeeksLater = new Date();
 
 

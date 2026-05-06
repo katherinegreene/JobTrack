@@ -233,3 +233,6 @@ if __name__ == "__main__": #runs app.py
 #Since files are too big for standard database rows, you use GridFS (a MongoDB feature for large file storage).
 #jsonify: flasks converts python objects json so react can accept/its a safe practice for API
 #React can't read Python objects directly. jsonify converts Python dictionaries into JSON strings, which is the standard language of the web.
+#file.read() = raw bytes
+##b64encode(...) =converts bytes into a long string
+#.decode('utf-8') = makes it storable as text in MongoDB

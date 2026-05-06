@@ -3,16 +3,17 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 function Login() {
+    //email password and 
     const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [message, setMessage] = useState("");
 
-    const login = async (e) => { // can make it asynchronous handles fetch()
+    const login = async (e) => { // stops constant page refresh
         e.preventDefault();
         setMessage("");
 
-        try {
+        try { //this is the fetch request to backend
             const res = await fetch("http://127.0.0.1:5000/login", {
                 method: "POST",
                 credentials: "include",
